@@ -17,6 +17,7 @@ from google.appengine.api import memcache
 from google.appengine.api import urlfetch
 from google.appengine.api import mail
 from google.appengine.ext import db
+from google.appengine.api import users
 from google.appengine.ext.webapp import util
 from google.appengine.ext.webapp import template
 
@@ -50,7 +51,7 @@ import config
 class HomeHandler(webapp.RequestHandler):
     def head(self):
         pass
-        
+
     def get(self):
         host = self.request.headers['Host']
         if host == 'beta.v2ex.com':
@@ -208,7 +209,7 @@ class HomeHandler(webapp.RequestHandler):
             path = os.path.join(os.path.dirname(__file__), 'tpl', 'desktop', 'index.html')
         output = template.render(path, template_values)
         self.response.out.write(output)
-        
+
 class RecentHandler(webapp.RequestHandler):
     def get(self):
         site = GetSite()
@@ -261,7 +262,7 @@ class UAHandler(webapp.RequestHandler):
         output = template.render(path, template_values)
         self.response.out.write(output)
 
-        
+
 class SigninHandler(webapp.RequestHandler):
     def get(self):
         site = GetSite()
@@ -281,7 +282,7 @@ class SigninHandler(webapp.RequestHandler):
             path = os.path.join(os.path.dirname(__file__), 'tpl', 'desktop', 'signin.html')
         output = template.render(path, template_values)
         self.response.out.write(output)
- 
+
     def post(self):
         site = GetSite()
         member = False
@@ -317,7 +318,92 @@ class SigninHandler(webapp.RequestHandler):
             path = os.path.join(os.path.dirname(__file__), 'tpl', 'desktop', 'signin.html')
         output = template.render(path, template_values)
         self.response.out.write(output)
-        
+
+class GaeSigninHandler(webapp.RequestHandler):
+    def get(self):
+        user = users.get_current_user()
+        if user:
+       	    q = db.GqlQuery("SELECT * FROM Member WHERE email = :1 ", user.email())
+            if (q.count() == 1):
+                member = q[0]
+                self.response.headers['Set-Cookie'] = 'auth=' + member.auth + '; expires=' + (datetime.datetime.now() + datetime.timedelta(days=365)).strftime("%a, %d-%b-%Y %H:%M:%S GMT") + '; path=/'
+                self.redirect('/')
+            else:
+		        site = GetSite()
+		        member = False
+		        browser = detect(self.request)
+		        template_values = {}
+		        template_values['site'] = site
+		        template_values['page_title'] = site.title + u' › 登入'
+		        template_values['system_version'] = SYSTEM_VERSION
+		        l10n = GetMessages(self, member, site)
+		        template_values['l10n'] = l10n
+		        errors = 0
+		        template_values['errors'] = errors
+		        template_values['email']=user.email()
+
+		        path = os.path.join(os.path.dirname(__file__), 'tpl', 'desktop', 'gaesignin.html')
+		        output = template.render(path, template_values)
+		        self.response.out.write(output)
+
+    def post(self):
+   	    u = self.request.get('u').strip()
+   	    e = self.request.get('e').strip()
+   	    user = users.get_current_user()
+   	    if user:
+   		    qs = db.GqlQuery("SELECT * FROM Member WHERE username_lower = :1 ", u.lower())
+   		    qs2=db.GqlQuery("SELECT * FROM Member WHERE email= :1 ", e.lower())
+
+   		    if qs.count() or qs2.count():
+   		    	site = GetSite()
+		        member = False
+		        browser = detect(self.request)
+		        template_values = {}
+		        template_values['site'] = site
+		        template_values['page_title'] = site.title + u' › 登入'
+		        template_values['system_version'] = SYSTEM_VERSION
+		        l10n = GetMessages(self, member, site)
+		        template_values['l10n'] = l10n
+		        errors = 1
+		        template_values['errors'] = errors
+		        template_values['error_message'] = "用户名或Email已经存在"
+
+		        template_values['email']=user.email()
+
+		        path = os.path.join(os.path.dirname(__file__), 'tpl', 'desktop', 'gaesignin.html')
+		        output = template.render(path, template_values)
+		        self.response.out.write(output)
+		        return
+
+   		    member = Member()
+            q = db.GqlQuery('SELECT * FROM Counter WHERE name = :1', 'member.max')
+            if (q.count() == 1):
+                counter = q[0]
+                counter.value = counter.value + 1
+            else:
+                counter = Counter()
+                counter.name = 'member.max'
+                counter.value = 1
+            q2 = db.GqlQuery('SELECT * FROM Counter WHERE name = :1', 'member.total')
+            if (q2.count() == 1):
+                counter2 = q2[0]
+                counter2.value = counter2.value + 1
+            else:
+                counter2 = Counter()
+                counter2.name = 'member.total'
+                counter2.value = 1
+            member.num = counter.value
+            member.username =u
+            member.username_lower = u.lower()
+            member.password = ""#hashlib.sha1(member_password).hexdigest()
+            member.email = e.lower()
+            member.auth = hashlib.sha1(str(member.num) + ':' + member.password).hexdigest()
+            member.put()
+            counter.put()
+            counter2.put()
+            self.response.headers['Set-Cookie'] = 'auth=' + member.auth + '; expires=' + (datetime.datetime.now() + datetime.timedelta(days=365)).strftime("%a, %d-%b-%Y %H:%M:%S GMT") + '; path=/'
+            self.redirect('/')
+
 class SignupHandler(webapp.RequestHandler):
     def get(self):
         site = GetSite()
@@ -341,7 +427,7 @@ class SignupHandler(webapp.RequestHandler):
             path = os.path.join(os.path.dirname(__file__), 'tpl', 'desktop', 'signup.html')
         output = template.render(path, template_values)
         self.response.out.write(output)
-        
+
     def post(self):
         site = GetSite()
         member = False
@@ -429,7 +515,7 @@ class SignupHandler(webapp.RequestHandler):
         challenge = self.request.get('recaptcha_challenge_field')
         response  = self.request.get('recaptcha_response_field')
         remoteip  = os.environ['REMOTE_ADDR']
-        
+
         cResponse = captcha.submit(
                          challenge,
                          response,
@@ -523,7 +609,7 @@ class ForgotHandler(webapp.RequestHandler):
         path = os.path.join(os.path.dirname(__file__), 'tpl', 'desktop', 'forgot.html')
         output = template.render(path, template_values)
         self.response.out.write(output)
-    
+
     def post(self):
         site = GetSite()
         browser = detect(self.request)
@@ -603,7 +689,7 @@ class PasswordResetHandler(GenericHandler):
             path = os.path.join(os.path.dirname(__file__), 'tpl', 'desktop', 'token_not_found.html')
             output = template.render(path, template_values)
             self.response.out.write(output)
-    
+
     def post(self, token):
         site = GetSite()
         template_values = {}
@@ -667,7 +753,7 @@ class NodeHandler(webapp.RequestHandler):
         if member:
             template_values['member'] = member
         l10n = GetMessages(self, member, site)
-        template_values['l10n'] = l10n    
+        template_values['l10n'] = l10n
         node = GetKindByName('Node', node_name)
         template_values['node'] = node
         pagination = False
@@ -724,7 +810,7 @@ class NodeHandler(webapp.RequestHandler):
                     more = page + 1
                 if page > 1:
                     has_previous = True
-                    previous = page - 1    
+                    previous = page - 1
                 start = (page - 1) * page_size
                 template_values['canonical'] = 'http://' + site.domain + '/go/' + node.name + '?p=' + str(page)
         else:
@@ -841,7 +927,8 @@ def main():
     ('/go/(.*)', NodeHandler),
     ('/n/([a-zA-Z0-9]+).json', NodeApiHandler),
     ('/q/(.*)', SearchHandler),
-    ('/_dispatcher', DispatcherHandler)
+    ('/_dispatcher', DispatcherHandler),
+    ('/gaesignin', GaeSigninHandler),
     ],
                                          debug=True)
     util.run_wsgi_app(application)

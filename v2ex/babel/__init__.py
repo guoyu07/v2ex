@@ -45,13 +45,13 @@ class Member(db.Model):
     last_signin = db.DateTimeProperty()
     blocked = db.TextProperty(required=False, default='')
     l10n = db.StringProperty(default='en')
-    
+
 class Counter(db.Model):
     name = db.StringProperty(required=False, indexed=True)
     value = db.IntegerProperty()
     created = db.DateTimeProperty(auto_now_add=True)
     last_increased = db.DateTimeProperty(auto_now=True)
-    
+
 class Section(db.Model):
     num = db.IntegerProperty(indexed=True)
     name = db.StringProperty(required=False, indexed=True)
@@ -62,7 +62,7 @@ class Section(db.Model):
     nodes = db.IntegerProperty(default=0)
     created = db.DateTimeProperty(auto_now_add=True)
     last_modified = db.DateTimeProperty(auto_now=True)
-    
+
 class Node(db.Model):
     num = db.IntegerProperty(indexed=True)
     section_num = db.IntegerProperty(indexed=True)
@@ -75,7 +75,7 @@ class Node(db.Model):
     topics = db.IntegerProperty(default=0)
     created = db.DateTimeProperty(auto_now_add=True)
     last_modified = db.DateTimeProperty(auto_now=True)
-    
+
 class Topic(db.Model):
     num = db.IntegerProperty(indexed=True)
     node = db.ReferenceProperty(Node)
@@ -98,7 +98,7 @@ class Topic(db.Model):
     created = db.DateTimeProperty(auto_now_add=True)
     last_modified = db.DateTimeProperty(auto_now=True)
     last_touched = db.DateTimeProperty()
-    
+
 class Reply(db.Model):
     num = db.IntegerProperty(indexed=True)
     topic = db.ReferenceProperty(Topic)
@@ -110,12 +110,12 @@ class Reply(db.Model):
     created_by = db.StringProperty(required=False, indexed=True)
     created = db.DateTimeProperty(auto_now_add=True)
     last_modified = db.DateTimeProperty(auto_now=True)
-    
+
 class Avatar(db.Model):
     num = db.IntegerProperty(indexed=True)
     name = db.StringProperty(required=False, indexed=True)
     content = db.BlobProperty()
-    
+
 class Note(db.Model):
     num = db.IntegerProperty(indexed=True)
     member = db.ReferenceProperty(Member)
@@ -159,7 +159,7 @@ class Checkin(db.Model):
     place = db.ReferenceProperty(Place)
     member = db.ReferenceProperty(Member)
     last_checked_in = db.DateTimeProperty(auto_now=True)
-    
+
 class Site(db.Model):
     num = db.IntegerProperty(required=False, indexed=True)
     title = db.StringProperty(required=False, indexed=False)
@@ -171,7 +171,8 @@ class Site(db.Model):
     l10n = db.StringProperty(default='en')
     use_topic_types = db.BooleanProperty(default=False)
     topic_types = db.TextProperty(default='')
-    
+    gae_login_url=users.create_login_url("/gaesignin")
+
 class Minisite(db.Model):
     num = db.IntegerProperty(required=False, indexed=True)
     name = db.StringProperty(required=False, indexed=True)
