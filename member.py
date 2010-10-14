@@ -88,7 +88,7 @@ class MemberHandler(webapp.RequestHandler):
                     template_values['one_is_blocked'] = True
                 else:
                     template_values['one_is_blocked'] = False
-        if one is not False: 
+        if one is not False:
             if browser['ios']:
                 path = os.path.join(os.path.dirname(__file__), 'tpl', 'mobile', 'member_home.html')
             else:
@@ -100,7 +100,7 @@ class MemberHandler(webapp.RequestHandler):
                 path = os.path.join(os.path.dirname(__file__), 'tpl', 'desktop', 'member_not_found.html')
         output = template.render(path, template_values)
         self.response.out.write(output)
-        
+
 class MemberApiHandler(webapp.RequestHandler):
     def get(self, member_username):
         site = GetSite()
@@ -120,7 +120,7 @@ class MemberApiHandler(webapp.RequestHandler):
             self.response.out.write(output)
         else:
             self.error(404)
-        
+
 
 class SettingsHandler(webapp.RequestHandler):
     def get(self):
@@ -192,7 +192,7 @@ class SettingsHandler(webapp.RequestHandler):
             self.response.out.write(output)
         else:
             self.redirect('/signin')
-        
+
     def post(self):
         site = GetSite()
         browser = detect(self.request)
@@ -274,7 +274,7 @@ class SettingsHandler(webapp.RequestHandler):
             ]
             member_website = self.request.get('website').strip()
             if (len(member_website) == 0):
-                member_website = ''    
+                member_website = ''
             else:
                 if (len(member_website) > 200):
                     errors = errors + 1
@@ -319,7 +319,7 @@ class SettingsHandler(webapp.RequestHandler):
             ]
             member_location = self.request.get('location').strip()
             if (len(member_location) == 0):
-                member_location = ''    
+                member_location = ''
             else:
                 if (len(member_location) > 40):
                     errors = errors + 1
@@ -334,7 +334,7 @@ class SettingsHandler(webapp.RequestHandler):
             ]
             member_tagline = self.request.get('tagline').strip()
             if (len(member_tagline) == 0):
-                member_tagline = ''    
+                member_tagline = ''
             else:
                 if (len(member_tagline) > 70):
                     errors = errors + 1
@@ -349,7 +349,7 @@ class SettingsHandler(webapp.RequestHandler):
             ]
             member_bio = self.request.get('bio').strip()
             if (len(member_bio) == 0):
-                member_bio = ''    
+                member_bio = ''
             else:
                 if (len(member_bio) > 2000):
                     errors = errors + 1
@@ -433,12 +433,14 @@ class SettingsPasswordHandler(webapp.RequestHandler):
                     password_error = 1
                 else:
                     password_current = self.request.get('password_current').strip()
-                    if (len(password_current) == 0):
-                        password_error = 2
-                    else:
-                        password_current_sha1 = hashlib.sha1(password_current).hexdigest()
-                        if (password_current_sha1 != member.password):
-                            password_error = 3
+                    #if (len(password_current) == 0):
+                    #    password_error = 2
+                    #else:
+
+                    password_current_sha1 = hashlib.sha1(password_current).hexdigest()
+                    #print password_current_sha1,'',member.password
+                    if (password_current_sha1 != member.password):
+                        password_error = 3
             template_values['password_error'] = password_error
             template_values['password_error_message'] = password_error_messages[password_error]
             if ((password_error == 0) and (password_update == True)):
@@ -485,7 +487,7 @@ class SettingsAvatarHandler(webapp.RequestHandler):
             self.response.out.write(output)
         else:
             self.redirect('/signin')
-        
+
     def post(self):
         site = GetSite()
         self.session = Session()
@@ -547,7 +549,7 @@ class SettingsAvatarHandler(webapp.RequestHandler):
                 avatar_normal.num = counter2.value
                 avatar_normal.put()
             member.avatar_normal_url = '/avatar/' + str(member.num) + '/normal?r=' + timestamp
-            member.put() 
+            member.put()
             # Mini 24x24
             q3 = db.GqlQuery("SELECT * FROM Avatar WHERE name = :1", 'avatar_' + str(member.num) + '_mini')
             if (q3.count() == 1):

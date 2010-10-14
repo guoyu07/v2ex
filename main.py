@@ -395,7 +395,7 @@ class GaeSigninHandler(webapp.RequestHandler):
             member.num = counter.value
             member.username =u
             member.username_lower = u.lower()
-            member.password = ""#hashlib.sha1(member_password).hexdigest()
+            member.password = hashlib.sha1("").hexdigest()
             member.email = e.lower()
             member.auth = hashlib.sha1(str(member.num) + ':' + member.password).hexdigest()
             member.put()
