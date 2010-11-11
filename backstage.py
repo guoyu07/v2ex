@@ -233,11 +233,409 @@ class BackstageMinisiteHandler(webapp.RequestHandler):
                 if minisite is not False:
                     template_values['minisite'] = minisite
                     template_values['page_title'] = site.title + u' › ' + minisite.title
+                    q = db.GqlQuery("SELECT * FROM Page WHERE minisite = :1 ORDER BY weight ASC", minisite)
+                    template_values['pages'] = q
                     path = os.path.join(os.path.dirname(__file__), 'tpl', 'desktop', 'backstage_minisite.html')
                     output = template.render(path, template_values)
                     self.response.out.write(output)
                 else:
                     self.redirect('/backstage')
+            else:
+                self.redirect('/')
+        else:
+            self.redirect('/signin')
+
+class BackstageNewPageHandler(webapp.RequestHandler):
+    def get(self, minisite_name):
+        site = GetSite()
+        template_values = {}
+        template_values['site'] = site
+        template_values['system_version'] = SYSTEM_VERSION
+        member = CheckAuth(self)
+        template_values['member'] = member
+        l10n = GetMessages(self, member, site)
+        template_values['l10n'] = l10n
+        if (member):
+            if (member.num == 1):
+                minisite = GetKindByName('Minisite', minisite_name)
+                if minisite is not False:
+                    template_values['minisite'] = minisite
+                    template_values['page_title'] = site.title + u' › ' + minisite.title + u' › 添加新页面'
+                    template_values['page_content_type'] = 'text/html;charset=utf-8'
+                    template_values['page_weight'] = 0
+                    template_values['page_mode'] = 0
+                    path = os.path.join(os.path.dirname(__file__), 'tpl', 'desktop', 'backstage_new_page.html')
+                    output = template.render(path, template_values)
+                    self.response.out.write(output)
+                else:
+                    self.redirect('/backstage')
+            else:
+                self.redirect('/')
+        else:
+            self.redirect('/signin')
+
+    def post(self, minisite_name):
+        site = GetSite()
+        template_values = {}
+        template_values['site'] = site
+        template_values['system_version'] = SYSTEM_VERSION
+        member = CheckAuth(self)
+        template_values['member'] = member
+        l10n = GetMessages(self, member, site)
+        template_values['l10n'] = l10n
+        if (member):
+            if (member.num == 1):
+                minisite = GetKindByName('Minisite', minisite_name)
+                if minisite is False:
+                    self.redirect('/backstage')
+                else:
+                    template_values['minisite'] = minisite
+                    template_values['page_title'] = site.title + u' › ' + minisite.title + u' › 添加新页面'
+                    errors = 0
+                    # Verification: name
+                    page_name_error = 0
+                    page_name_error_messages = ['',
+                        u'请输入页面名',
+                        u'页面名长度不能超过 64 个字符',
+                        u'页面名只能由 a-Z 0-9 及 . - _ 组成',
+                        u'抱歉这个页面名已经存在了']
+                    page_name = self.request.get('name').strip().lower()
+                    if (len(page_name) == 0):
+                        errors = errors + 1
+                        page_name_error = 1
+                    else:
+                        if (len(page_name) > 64):
+                            errors = errors + 1
+                            page_name_error = 2
+                        else:
+                            if (re.search('^[a-zA-Z0-9\-\_\.]+$', page_name)):
+                                q = db.GqlQuery('SELECT * FROM Page WHERE name = :1', page_name.lower())
+                                if (q.count() > 0):
+                                    if q[0].minisite.name == minisite.name:
+                                        errors = errors + 1
+                                        page_name_error = 4
+                            else:
+                                errors = errors + 1
+                                page_name_error = 3
+                    template_values['page_name'] = page_name
+                    template_values['page_name_error'] = page_name_error
+                    template_values['page_name_error_message'] = page_name_error_messages[page_name_error]
+                    # Verification: title
+                    page_t_error = 0
+                    page_t_error_messages = ['',
+                        u'请输入页面标题',
+                        u'页面标题长度不能超过 100 个字符'
+                    ]
+                    page_t = self.request.get('t').strip()
+                    if (len(page_t) == 0):
+                        errors = errors + 1
+                        page_t_error = 1
+                    else:
+                        if (len(page_t) > 100):
+                            errors = errors + 1
+                            page_t_error = 2
+                    template_values['page_t'] = page_t
+                    template_values['page_t_error'] = page_t_error
+                    template_values['page_t_error_message'] = page_t_error_messages[page_t_error]
+                    # Verification: content
+                    page_content_error = 0
+                    page_content_error_messages = ['',
+                        u'请输入页面内容',
+                        u'页面内容长度不能超过 200000 个字符'
+                    ]
+                    page_content = self.request.get('content').strip()
+                    if (len(page_content) == 0):
+                        errors = errors + 1
+                        page_content_error = 1
+                    else:
+                        if (len(page_content) > 200000):
+                            errors = errors + 1
+                            page_content_error = 2
+                    template_values['page_content'] = page_content
+                    template_values['page_content_error'] = page_content_error
+                    template_values['page_content_error_message'] = page_content_error_messages[page_content_error]
+                    # Verification: mode
+                    page_mode = 0
+                    page_mode = self.request.get('mode').strip()
+                    if page_mode == '1':
+                        page_mode = 1
+                    else:
+                        page_mode = 0
+                    # Verification: content_type
+                    page_content_type = self.request.get('content_type').strip()
+                    if (len(page_content_type) == 0):
+                        page_content_type = 'text/html;charset=utf-8'
+                    else:
+                        if (len(page_content_type) > 40):
+                            page_content_type = 'text/html;charset=utf-8'
+                    template_values['page_content_type'] = page_content_type
+                    # Verification: weight
+                    page_weight = self.request.get('weight').strip()
+                    if (len(page_content_type) == 0):
+                        page_content_type = 0
+                    else:
+                        if (len(page_weight) > 9):
+                            page_weight = 0
+                        else:
+                            try:
+                                page_weight = int(page_weight)
+                            except:
+                                page_weight = 0
+                    template_values['page_weight'] = page_weight
+                    template_values['errors'] = errors
+                    if (errors == 0):
+                        page = Page(parent=minisite)
+                        q = db.GqlQuery('SELECT * FROM Counter WHERE name = :1', 'page.max')
+                        if (q.count() == 1):
+                            counter = q[0]
+                            counter.value = counter.value + 1
+                        else:
+                            counter = Counter()
+                            counter.name = 'page.max'
+                            counter.value = 1
+                        q2 = db.GqlQuery('SELECT * FROM Counter WHERE name = :1', 'page.total')
+                        if (q2.count() == 1):
+                            counter2 = q[0]
+                            counter2.value = counter.value + 1
+                        else:
+                            counter2 = Counter()
+                            counter2.name = 'page.total'
+                            counter2.value = 1
+                        page.num = counter.value
+                        page.name = page_name
+                        page.title = page_t
+                        page.content = page_content
+                        page.content_rendered = page_content
+                        page.content_type = page_content_type
+                        page.weight = page_weight
+                        page.mode = page_mode
+                        page.minisite = minisite
+                        page.put()
+                        counter.put()
+                        counter2.put()
+                        minisite.pages = minisite.pages + 1
+                        minisite.put()
+                        memcache.delete('Minisite_' + str(minisite.num))
+                        memcache.delete('Minisite::' + str(minisite.name))
+                        self.redirect('/backstage/minisite/' + minisite.name)
+                    else:    
+                        path = os.path.join(os.path.dirname(__file__), 'tpl', 'desktop', 'backstage_new_page.html')
+                        output = template.render(path, template_values)
+                        self.response.out.write(output)
+            else:
+                self.redirect('/')
+        else:
+            self.redirect('/signin')
+
+class BackstageRemoveMinisiteHandler(webapp.RequestHandler):
+    def get(self, minisite_key):
+        member = CheckAuth(self)
+        if member:
+            if member.num == 1:
+                minisite = db.get(db.Key(minisite_key))
+                if minisite:
+                    # Delete all contents
+                    pages = db.GqlQuery("SELECT * FROM Page WHERE minisite = :1", minisite)
+                    for page in pages:
+                        memcache.delete('Page_' + str(page.num))
+                        memcache.delete('Page::' + str(page.name))
+                        memcache.delete(minisite.name + '/' + page.name)
+                        page.delete()
+                    minisite.pages = 0
+                    minisite.put()
+                    # Delete the minisite
+                    memcache.delete('Minisite_' + str(minisite.num))
+                    memcache.delete('Minisite::' + str(minisite.name))
+                    minisite.delete()
+                    self.redirect('/backstage')
+                else:
+                    self.redirect('/backstage')
+            else:
+                self.redirect('/')
+        else:
+            self.redirect('/signin')
+
+class BackstagePageHandler(webapp.RequestHandler):
+    def get(self, page_key):
+        site = GetSite()
+        template_values = {}
+        template_values['site'] = site
+        template_values['system_version'] = SYSTEM_VERSION
+        member = CheckAuth(self)
+        template_values['member'] = member
+        l10n = GetMessages(self, member, site)
+        template_values['l10n'] = l10n
+        if (member):
+            if (member.num == 1):
+                page = db.get(db.Key(page_key))
+                if page:
+                    minisite = page.minisite
+                    template_values['page'] = page
+                    template_values['minisite'] = minisite
+                    template_values['page_title'] = site.title + u' › ' + minisite.title + u' › ' + page.title + u' › 编辑'
+                    template_values['page_name'] = page.name
+                    template_values['page_t'] = page.title
+                    template_values['page_content'] = page.content
+                    template_values['page_content_type'] = page.content_type
+                    template_values['page_mode'] = page.mode
+                    template_values['page_weight'] = page.weight
+                    path = os.path.join(os.path.dirname(__file__), 'tpl', 'desktop', 'backstage_page.html')
+                    output = template.render(path, template_values)
+                    self.response.out.write(output)
+                else:
+                    self.redirect('/backstage')
+            else:
+                self.redirect('/')
+        else:
+            self.redirect('/signin')
+
+    def post(self, page_key):
+        site = GetSite()
+        template_values = {}
+        template_values['site'] = site
+        template_values['system_version'] = SYSTEM_VERSION
+        member = CheckAuth(self)
+        template_values['member'] = member
+        l10n = GetMessages(self, member, site)
+        template_values['l10n'] = l10n
+        if (member):
+            if (member.num == 1):
+                page = db.get(db.Key(page_key))
+                if page:
+                    minisite = page.minisite
+                    template_values['minisite'] = minisite
+                    template_values['page_title'] = site.title + u' › ' + minisite.title + u' › 添加新页面'
+                    errors = 0
+                    # Verification: name
+                    page_name_error = 0
+                    page_name_error_messages = ['',
+                        u'请输入页面名',
+                        u'页面名长度不能超过 64 个字符',
+                        u'页面名只能由 a-Z 0-9 及 . - _ 组成',
+                        u'抱歉这个页面名已经存在了']
+                    page_name = self.request.get('name').strip().lower()
+                    if (len(page_name) == 0):
+                        errors = errors + 1
+                        page_name_error = 1
+                    else:
+                        if (len(page_name) > 64):
+                            errors = errors + 1
+                            page_name_error = 2
+                        else:
+                            if (re.search('^[a-zA-Z0-9\-\_\.]+$', page_name)):
+                                q = db.GqlQuery('SELECT * FROM Page WHERE name = :1', page_name.lower())
+                                if (q.count() > 0):
+                                    if q[0].num != page.num:
+                                        errors = errors + 1
+                                        page_name_error = 4
+                            else:
+                                errors = errors + 1
+                                page_name_error = 3
+                    template_values['page_name'] = page_name
+                    template_values['page_name_error'] = page_name_error
+                    template_values['page_name_error_message'] = page_name_error_messages[page_name_error]
+                    # Verification: title
+                    page_t_error = 0
+                    page_t_error_messages = ['',
+                        u'请输入页面标题',
+                        u'页面标题长度不能超过 100 个字符'
+                    ]
+                    page_t = self.request.get('t').strip()
+                    if (len(page_t) == 0):
+                        errors = errors + 1
+                        page_t_error = 1
+                    else:
+                        if (len(page_t) > 100):
+                            errors = errors + 1
+                            page_t_error = 2
+                    template_values['page_t'] = page_t
+                    template_values['page_t_error'] = page_t_error
+                    template_values['page_t_error_message'] = page_t_error_messages[page_t_error]
+                    # Verification: content
+                    page_content_error = 0
+                    page_content_error_messages = ['',
+                        u'请输入页面内容',
+                        u'页面内容长度不能超过 200000 个字符'
+                    ]
+                    page_content = self.request.get('content').strip()
+                    if (len(page_content) == 0):
+                        errors = errors + 1
+                        page_content_error = 1
+                    else:
+                        if (len(page_content) > 200000):
+                            errors = errors + 1
+                            page_content_error = 2
+                    template_values['page_content'] = page_content
+                    template_values['page_content_error'] = page_content_error
+                    template_values['page_content_error_message'] = page_content_error_messages[page_content_error]
+                    # Verification: mode
+                    page_mode = 0
+                    page_mode = self.request.get('mode').strip()
+                    if page_mode == '1':
+                        page_mode = 1
+                    else:
+                        page_mode = 0
+                    # Verification: content_type
+                    page_content_type = self.request.get('content_type').strip()
+                    if (len(page_content_type) == 0):
+                        page_content_type = 'text/html;charset=utf-8'
+                    else:
+                        if (len(page_content_type) > 40):
+                            page_content_type = 'text/html;charset=utf-8'
+                    template_values['page_content_type'] = page_content_type
+                    # Verification: weight
+                    page_weight = self.request.get('weight').strip()
+                    if (len(page_content_type) == 0):
+                        page_content_type = 0
+                    else:
+                        if (len(page_weight) > 9):
+                            page_weight = 0
+                        else:
+                            try:
+                                page_weight = int(page_weight)
+                            except:
+                                page_weight = 0
+                    template_values['page_weight'] = page_weight
+                    template_values['errors'] = errors
+                    if (errors == 0):
+                        page.name = page_name
+                        page.title = page_t
+                        page.content = page_content
+                        page.content_rendered = page_content
+                        page.content_type = page_content_type
+                        page.mode = page_mode
+                        page.weight = page_weight
+                        page.put()
+                        memcache.delete('Page_' + str(page.num))
+                        memcache.delete('Page::' + str(page.name))
+                        memcache.delete(minisite.name + '/' + page.name)
+                        self.redirect('/backstage/minisite/' + minisite.name)
+                    else:    
+                        path = os.path.join(os.path.dirname(__file__), 'tpl', 'desktop', 'backstage_page.html')
+                        output = template.render(path, template_values)
+                        self.response.out.write(output)
+                else:
+                    self.redirect('/backstage')
+            else:
+                self.redirect('/')
+        else:
+            self.redirect('/signin')
+    
+class BackstageRemovePageHandler(webapp.RequestHandler):
+    def get(self, page_key):
+        member = CheckAuth(self)
+        if member:
+            if member.num == 1:
+                page = db.get(db.Key(page_key))
+                if page:
+                    memcache.delete('Page_' + str(page.num))
+                    memcache.delete('Page::' + str(page.name))
+                    memcache.delete(page.minisite.name + '/' + page.name)
+                    minisite = page.minisite
+                    page.delete()
+                    minisite.pages = minisite.pages - 1
+                    minisite.put()
+                    self.redirect('/backstage/minisite/' + minisite.name)
             else:
                 self.redirect('/')
         else:
@@ -679,6 +1077,7 @@ class BackstageNewNodeHandler(webapp.RequestHandler):
 class BackstageNodeHandler(webapp.RequestHandler):
     def get(self, node_name):
         site = GetSite()
+        browser = detect(self.request)
         template_values = {}
         template_values['site'] = site
         template_values['system_version'] = SYSTEM_VERSION
@@ -706,6 +1105,10 @@ class BackstageNodeHandler(webapp.RequestHandler):
                         template_values['node_footer'] = ''
                     else:
                         template_values['node_footer'] = q[0].footer
+                    if q[0].sidebar is None:
+                        template_values['node_sidebar'] = ''
+                    else:
+                        template_values['node_sidebar'] = q[0].sidebar
                     template_values['node_topics'] = q[0].topics
                 else:
                     template_values['node'] = False
@@ -714,7 +1117,10 @@ class BackstageNodeHandler(webapp.RequestHandler):
                     template_values['section'] = q2[0]
                 else:
                     template_values['section'] = False
-                path = os.path.join(os.path.dirname(__file__), 'tpl', 'mobile', 'backstage_node.html')
+                if browser['ios']:
+                    path = os.path.join(os.path.dirname(__file__), 'tpl', 'mobile', 'backstage_node.html')
+                else:
+                    path = os.path.join(os.path.dirname(__file__), 'tpl', 'desktop', 'backstage_node.html')
                 output = template.render(path, template_values)
                 self.response.out.write(output)
             else:
@@ -724,6 +1130,7 @@ class BackstageNodeHandler(webapp.RequestHandler):
 
     def post(self, node_name):
         site = GetSite()
+        browser = detect(self.request)
         template_values = {}
         template_values['site'] = site
         template_values['system_version'] = SYSTEM_VERSION
@@ -753,6 +1160,10 @@ class BackstageNodeHandler(webapp.RequestHandler):
                         template_values['node_footer'] = ''
                     else:
                         template_values['node_footer'] = q[0].footer
+                    if q[0].sidebar is None:
+                        template_values['node_sidebar'] = ''
+                    else:
+                        template_values['node_sidebar'] = q[0].sidebar
                     template_values['node_topics'] = q[0].topics
                 else:
                     template_values['node'] = False
@@ -826,10 +1237,16 @@ class BackstageNodeHandler(webapp.RequestHandler):
                 template_values['node_title_alternative_error_message'] = node_title_alternative_error_messages[node_title_alternative_error]
                 # Verification: node_category
                 node_category = self.request.get('category').strip()
+                template_values['node_category'] = node_category
                 # Verification: node_header
                 node_header = self.request.get('header').strip()
+                template_values['node_header'] = node_header
                 # Verification: node_footer
                 node_footer = self.request.get('footer').strip()
+                template_values['node_footer'] = node_footer
+                # Verification: node_sidebar
+                node_sidebar = self.request.get('sidebar').strip()
+                template_values['node_sidebar'] = node_sidebar
                 template_values['errors'] = errors
                 if (errors == 0):
                     node.name = node_name
@@ -838,6 +1255,7 @@ class BackstageNodeHandler(webapp.RequestHandler):
                     node.category = node_category
                     node.header = node_header
                     node.footer = node_footer
+                    node.sidebar = node_sidebar
                     node.put()
                     memcache.delete('Node_' + str(node.num))
                     memcache.delete('Node::' + node.name)
@@ -1155,7 +1573,7 @@ class BackstageTopicHandler(webapp.RequestHandler):
         template_values['l10n'] = l10n
         if member:
             if member.num == 1:
-                #template_values['page_title'] = site.title + u' › ' + l10n.backstage + u' › ' + l10n.topic_settings
+                template_values['page_title'] = site.title + u' › ' + l10n.backstage.decode('utf-8') + u' › ' + l10n.topic_settings.decode('utf-8')
                 template_values['site'] = site
                 template_values['site_use_topic_types'] = site.use_topic_types
                 if site.topic_types is None:
@@ -1242,6 +1660,10 @@ def main():
     ('/backstage', BackstageHomeHandler),
     ('/backstage/new/minisite', BackstageNewMinisiteHandler),
     ('/backstage/minisite/(.*)', BackstageMinisiteHandler),
+    ('/backstage/remove/minisite/(.*)', BackstageRemoveMinisiteHandler),
+    ('/backstage/new/page/(.*)', BackstageNewPageHandler),
+    ('/backstage/page/(.*)', BackstagePageHandler),
+    ('/backstage/remove/page/(.*)', BackstageRemovePageHandler),
     ('/backstage/new/section', BackstageNewSectionHandler),
     ('/backstage/section/(.*)', BackstageSectionHandler),
     ('/backstage/new/node/(.*)', BackstageNewNodeHandler),

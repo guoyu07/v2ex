@@ -62,6 +62,10 @@ class NewTopicHandler(webapp.RequestHandler):
         if (member):
             template_values['member'] = member
             node = GetKindByName('Node', node_name)
+            if node is False:
+                path = os.path.join(os.path.dirname(__file__), 'tpl', 'desktop', 'node_not_found.html')
+                output = template.render(path, template_values)
+                return self.response.out.write(output)
             template_values['node'] = node
             section = GetKindByNum('Section', node.section_num)
             template_values['section'] = section
@@ -245,7 +249,7 @@ class NewTopicHandler(webapp.RequestHandler):
                 if member.twitter_oauth == 1 and member.twitter_sync == 1:
                     access_token = OAuthToken.from_string(member.twitter_oauth_string)
                     twitter = OAuthApi(CONSUMER_KEY, CONSUMER_SECRET, access_token)
-                    status = topic.title + ' http://' + self.request.headers['Host'] + '/t/' + str(topic.num)
+                    status = topic.title + ' #' + topic.node.name + ' http://' + self.request.headers['Host'] + '/t/' + str(topic.num)
                     try:
                         twitter.PostUpdate(status.encode('utf-8'))
                     except:
@@ -399,6 +403,11 @@ class TopicHandler(webapp.RequestHandler):
                         r = template.render(path, template_values)
                         memcache.set(r_tag, r, 86400)
             template_values['r'] = r
+            if topic and member:
+                if member.hasFavorited(topic):
+                    template_values['favorited'] = True
+                else:
+                    template_values['favorited'] = False
             if browser['ios']:
                 path = os.path.join(os.path.dirname(__file__), 'tpl', 'mobile', 'topic.html')
             else:
@@ -783,13 +792,13 @@ class TopicIndexHandler(webapp.RequestHandler):
 
 class ReplyEditHandler(webapp.RequestHandler):
     def get(self, reply_num):
+        template_values = {}
         site = GetSite()
         member = CheckAuth(self)
         l10n = GetMessages(self, member, site)
         template_values['l10n'] = l10n
         if member:
             if member.num == 1:
-                template_values = {}
                 template_values['page_title'] = site.title + u' › 编辑回复'
                 template_values['member'] = member
                 q = db.GqlQuery("SELECT * FROM Reply WHERE num = :1", int(reply_num))
@@ -812,13 +821,13 @@ class ReplyEditHandler(webapp.RequestHandler):
             self.redirect('/signin')
     
     def post(self, reply_num):
+        template_values = {}
         site = GetSite()
         member = CheckAuth(self)
         l10n = GetMessages(self, member, site)
         template_values['l10n'] = l10n
         if member:
             if member.num == 1:
-                template_values = {}
                 template_values['page_title'] = site.title + u' › 编辑回复'
                 template_values['member'] = member
                 q = db.GqlQuery("SELECT * FROM Reply WHERE num = :1", int(reply_num))
@@ -870,8 +879,7 @@ class ReplyEditHandler(webapp.RequestHandler):
             else:
                 self.redirect('/')
         else:
-            self.redirect('/signin')
-        
+            self.redirect('/signin')       
 
 class TopicHitHandler(webapp.RequestHandler):
     def post(self, topic_key):
@@ -879,6 +887,13 @@ class TopicHitHandler(webapp.RequestHandler):
         if topic:
             topic.hits = topic.hits + 1
             topic.put()
+
+class PageHitHandler(webapp.RequestHandler):
+    def post(self, page_key):
+        page = db.get(db.Key(page_key))
+        if page:
+            page.hits = page.hits + 1
+            page.put()
 
 def main():
     application = webapp.WSGIApplication([
@@ -889,7 +904,8 @@ def main():
     ('/delete/topic/([0-9]+)', TopicDeleteHandler),
     ('/index/topic/([0-9]+)', TopicIndexHandler),
     ('/edit/reply/([0-9]+)', ReplyEditHandler),
-    ('/hit/topic/(.*)', TopicHitHandler)
+    ('/hit/topic/(.*)', TopicHitHandler),
+    ('/hit/page/(.*)', PageHitHandler)
     ],
                                          debug=True)
     util.run_wsgi_app(application)

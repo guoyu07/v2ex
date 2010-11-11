@@ -71,6 +71,7 @@ just_topic_creator = "只看楼主"
 replies = "回复"
 till = "直到"
 sure_to_delete = "确认删除？"
+no_pointless = '➥ 请尽量避免无要点，无信息量的回复，如“沙发”和“顶”，节约自己和他人的宝贵时间是一种美德。'
 
 # Messages on /go/
 
@@ -130,6 +131,7 @@ delete_specified_cached_item = '删除指定的缓存项目'
 delete_specified_cached_item_explained = '你可以在这里输入指定的缓存项目的名字并删除它。'
 mapreduce_explained = 'MapReduce 是一个用于数据整理的超强工具，请谨慎使用。'
 latest_joined = '最新加入会员'
+sure_to_delete_minisite = '确认删除这个 minisite 及其所有内容？'
 
 # Messages on /backstage/site
 

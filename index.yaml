@@ -15,6 +15,12 @@ indexes:
   - name: email
   - name: num
 
+- kind: MemberBookmark
+  properties:
+  - name: member_num
+  - name: created
+    direction: desc
+
 - kind: Node
   properties:
   - name: __key__
@@ -47,6 +53,12 @@ indexes:
   - name: topics
     direction: desc
 
+- kind: NodeBookmark
+  properties:
+  - name: member
+  - name: created
+    direction: desc
+
 - kind: Note
   properties:
   - name: member
@@ -58,6 +70,11 @@ indexes:
   - name: member
   - name: last_modified
     direction: desc
+
+- kind: Page
+  properties:
+  - name: minisite
+  - name: weight
 
 - kind: PlaceMessage
   properties:
@@ -125,4 +142,10 @@ indexes:
   properties:
   - name: node_num
   - name: last_touched
+    direction: desc
+
+- kind: TopicBookmark
+  properties:
+  - name: member
+  - name: created
     direction: desc

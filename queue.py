@@ -29,31 +29,28 @@ from v2ex.babel.security import *
 from v2ex.babel.ua import *
 from v2ex.babel.da import *
 from v2ex.babel.l10n import *
-from v2ex.babel.ext.cookies import Cookies
 
-template.register_template_library('v2ex.templatetags.filters')
+class AddStarTopicHandler(webapp.RequestHandler):
+    def post(self, topic_key):
+        topic = db.get(db.Key(topic_key))
+        if topic:
+            topic.stars = topic.stars + 1
+            topic.put()
+            memcache.set('Topic_' + str(topic.num), topic, 86400)
 
-class MyNodesHandler(webapp.RequestHandler):
-    def get(self):
-        member = CheckAuth(self)
-        if member:
-            site = GetSite()
-            l10n = GetMessages(self, member, site)
-            template_values = {}
-            template_values['site'] = site
-            template_values['member'] = member
-            template_values['l10n'] = l10n
-            template_values['page_title'] = site.title + u' › 我收藏的节点'
-            template_values['rnd'] = random.randrange(1, 100)
-            path = os.path.join(os.path.dirname(__file__), 'tpl', 'desktop', 'my_nodes.html')
-            output = template.render(path, template_values)
-            self.response.out.write(output)
-        else:
-            self.redirect('/')
+class MinusStarTopicHandler(webapp.RequestHandler):
+    def post(self, topic_key):
+        topic = db.get(db.Key(topic_key))
+        if topic:
+            topic.stars = topic.stars - 1
+            topic.put()
+            memcache.set('Topic_' + str(topic.num), topic, 86400)
+
 
 def main():
     application = webapp.WSGIApplication([
-    ('/my/nodes', MyNodesHandler)
+    ('/add/star/topic/(.*)', AddStarTopicHandler),
+    ('/minus/star/topic/(.*)', MinusStarTopicHandler)
     ],
                                          debug=True)
     util.run_wsgi_app(application)

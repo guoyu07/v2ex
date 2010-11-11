@@ -1,4 +1,4 @@
-SYSTEM_VERSION = '2.3.15'
+SYSTEM_VERSION = '2.3.19'
 
 import datetime
 import hashlib
@@ -45,7 +45,56 @@ class Member(db.Model):
     last_signin = db.DateTimeProperty()
     blocked = db.TextProperty(required=False, default='')
     l10n = db.StringProperty(default='en')
-
+    favorited_nodes = db.IntegerProperty(required=True, default=0)
+    favorited_topics = db.IntegerProperty(required=True, default=0)
+    favorited_members = db.IntegerProperty(required=True, default=0)
+    followers_count = db.IntegerProperty(required=True, default=0)
+    
+    def hasFavorited(self, something):
+        if type(something).__name__ == 'Node':
+            n = 'r/n' + str(something.num) + '/m' + str(self.num)
+            r = memcache.get(n)
+            if r:
+                return r
+            else:
+                q = db.GqlQuery("SELECT * FROM NodeBookmark WHERE node =:1 AND member = :2", something, self)
+                if q.count() > 0:
+                    memcache.set(n, True, 86400 * 14)
+                    return True
+                else:
+                    memcache.set(n, False, 86400 * 14)
+                    return False
+        else:
+            if type(something).__name__ == 'Topic':
+                n = 'r/t' + str(something.num) + '/m' + str(self.num)
+                r = memcache.get(n)
+                if r:
+                    return r
+                else:
+                    q = db.GqlQuery("SELECT * FROM TopicBookmark WHERE topic =:1 AND member = :2", something, self)
+                    if q.count() > 0:
+                        memcache.set(n, True, 86400 * 14)
+                        return True
+                    else:
+                        memcache.set(n, False, 86400 * 14)
+                        return False
+            else:
+                if type(something).__name__ == 'Member':
+                    n = 'r/m' + str(something.num) + '/m' + str(self.num)
+                    r = memcache.get(n)
+                    if r:
+                        return r
+                    else:
+                        q = db.GqlQuery("SELECT * FROM MemberBookmark WHERE one =:1 AND member_num = :2", something, self.num)
+                        if q.count() > 0:
+                            memcache.set(n, True, 86400 * 14)
+                            return True
+                        else:
+                            memcache.set(n, False, 86400 * 14)
+                            return False
+                else:
+                    return False
+    
 class Counter(db.Model):
     name = db.StringProperty(required=False, indexed=True)
     value = db.IntegerProperty()
@@ -71,6 +120,7 @@ class Node(db.Model):
     title_alternative = db.StringProperty(required=False, indexed=True)
     header = db.TextProperty(required=False)
     footer = db.TextProperty(required=False)
+    sidebar = db.TextProperty(required=False)
     category = db.StringProperty(required=False, indexed=True)
     topics = db.IntegerProperty(default=0)
     created = db.DateTimeProperty(auto_now_add=True)
@@ -89,6 +139,7 @@ class Topic(db.Model):
     content_rendered = db.TextProperty(required=False)
     content_length = db.IntegerProperty(default=0)
     hits = db.IntegerProperty(default=0)
+    stars = db.IntegerProperty(required=True, default=0)
     replies = db.IntegerProperty(default=0)
     created_by = db.StringProperty(required=False, indexed=True)
     last_reply_by = db.StringProperty(required=False, indexed=True)
@@ -185,10 +236,28 @@ class Minisite(db.Model):
 class Page(db.Model):
     num = db.IntegerProperty(required=False, indexed=True)
     name = db.StringProperty(required=False, indexed=True)
+    title = db.StringProperty(required=False, indexed=False)
     minisite = db.ReferenceProperty(Minisite)
     content = db.TextProperty(default='')
     content_rendered = db.TextProperty(default='')
     content_type = db.StringProperty(default='text/html')
-    weight = db.IntegerProperty(default=0)
+    weight = db.IntegerProperty(required=True, default=0)
+    mode = db.IntegerProperty(required=True, default=0)
+    hits = db.IntegerProperty(required=True, default=0)
     created = db.DateTimeProperty(auto_now_add=True)
     last_modified = db.DateTimeProperty(auto_now=True)
+
+class NodeBookmark(db.Model):
+    node = db.ReferenceProperty(Node, indexed=True)
+    member = db.ReferenceProperty(Member, indexed=True)
+    created = db.DateTimeProperty(auto_now_add=True)
+
+class TopicBookmark(db.Model):
+    topic = db.ReferenceProperty(Topic, indexed=True)
+    member = db.ReferenceProperty(Member, indexed=True)
+    created = db.DateTimeProperty(auto_now_add=True)
+
+class MemberBookmark(db.Model):
+    one = db.ReferenceProperty(Member, indexed=True)
+    member_num = db.IntegerProperty(indexed=True)
+    created = db.DateTimeProperty(auto_now_add=True)
